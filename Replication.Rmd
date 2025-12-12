@@ -31,10 +31,17 @@ library(geofacet)
 
 ```{r}
 
+# access current path
+current_path = rstudioapi::getActiveDocumentContext()$path
+
+# set working directory and print
+setwd(dirname(current_path))
+print(getwd())
+
 # load primary dataset and display, change paths accordingly
-nat_data <- read_dta("C:/Users/fyi48/OneDrive/Desktop/Frederick/Programs/summer 25/ONDCP_additional/MORTALITY_NFLIS DATA_YEAR_MONTH.dta")
-state_data_yr <- read_dta("C:/Users/fyi48/OneDrive/Desktop/Frederick/Programs/summer 25/ONDCP_additional/MORTALITY_NFLIS DATA_STATE_YEAR.dta")
-state_data_mnth <- read_dta("C:/Users/fyi48/OneDrive/Desktop/Frederick/Programs/summer 25/ONDCP_additional/MORTALITY_NFLIS DATA_STATE_YEAR_MONTH.dta")
+nat_data        = read_dta("./MORTALITY_NFLIS DATA_YEAR_MONTH.dta")
+state_data_yr   = read_dta("./MORTALITY_NFLIS DATA_STATE_YEAR.dta")
+state_data_mnth = read_dta("./MORTALITY_NFLIS DATA_STATE_YEAR_MONTH.dta")
 
 # Convert time columns to a proper date formats
 nat_data <- nat_data %>%
@@ -161,6 +168,7 @@ division_data_mnth <- state_data_mnth %>%
   dplyr::select( # select required variables
     divisions, YearMonth,
     death_synth_n, death_non_synth_n, death_all_n,
+    death_non_synth_n_1, death_non_synth_n_9,
     num_diff_drugs, number,
     count_fentanyl, count_illicit,
     count_xylazine, count_cocaine,
@@ -168,17 +176,19 @@ division_data_mnth <- state_data_mnth %>%
   ) %>%
   group_by(divisions, YearMonth) %>% # group by division
   summarise( # sum all variables across states within a division
-    death_synth_n     = sum(death_synth_n),
-    death_non_synth_n = sum(death_non_synth_n),
-    death_all_n       = sum(death_all_n),
-    num_diff_drugs    = sum(num_diff_drugs),
-    number            = sum(number),
-    count_fentanyl    = sum(count_fentanyl),
-    count_illicit     = sum(count_illicit),
-    count_xylazine    = sum(count_xylazine),
-    count_cocaine     = sum(count_cocaine),
-    count_heroin      = sum(count_heroin),
-    count_methamphet  = sum(count_methamphet),
+    death_synth_n       = sum(death_synth_n),
+    death_non_synth_n   = sum(death_non_synth_n),
+    death_all_n         = sum(death_all_n),
+    death_non_synth_n_1 = sum(death_non_synth_n_1),
+    death_non_synth_n_9 = sum(death_non_synth_n_9),
+    num_diff_drugs      = sum(num_diff_drugs),
+    number              = sum(number),
+    count_fentanyl      = sum(count_fentanyl),
+    count_illicit       = sum(count_illicit),
+    count_xylazine      = sum(count_xylazine),
+    count_cocaine       = sum(count_cocaine),
+    count_heroin        = sum(count_heroin),
+    count_methamphet    = sum(count_methamphet),
     .groups = "drop"
   )
 
@@ -207,16 +217,20 @@ division_data_mnth <- division_data_mnth %>%
 division_data_mnth <- division_data_mnth %>%
   mutate(
     # death rates per 100k
-    death_synth_n_rate      = (death_synth_n / population) * 100000,
-    death_non_synth_n_rate  = (death_non_synth_n / population) * 100000,
-    death_all_n_rate        = (death_all_n / population) * 100000,
+    death_synth_n_rate       = (death_synth_n / population) * 100000,
+    death_non_synth_n_rate   = (death_non_synth_n / population) * 100000,
+    death_all_n_rate         = (death_all_n / population) * 100000,
     
+    # imputation sens. analysis rates
+    death_non_synth_n_1_rate = (death_non_synth_n_1 / population) * 100000,
+    death_non_synth_n_9_rate = (death_non_synth_n_9 / population) * 100000,
+      
     # proportions of illicit substances (as a percentage)
-    prop_fentanyl_illicit   = (count_fentanyl / count_illicit) * 100,
-    prop_xylazine_illicit   = (count_xylazine / count_illicit) * 100,
-    prop_methamphet_illicit = (count_methamphet / count_illicit) * 100,
-    prop_cocaine_illicit    = (count_cocaine / count_illicit) * 100,
-    prop_heroin_illicit     = (count_heroin / count_illicit) * 100
+    prop_fentanyl_illicit    = (count_fentanyl / count_illicit) * 100,
+    prop_xylazine_illicit    = (count_xylazine / count_illicit) * 100,
+    prop_methamphet_illicit  = (count_methamphet / count_illicit) * 100,
+    prop_cocaine_illicit     = (count_cocaine / count_illicit) * 100,
+    prop_heroin_illicit      = (count_heroin / count_illicit) * 100
   )
 
 ```
@@ -233,7 +247,7 @@ division_data_mnth <- division_data_mnth %>%
 # Jan 2018 - Sep 2024
 
 # plot rates
-ggplot(nat_data, aes(x = YearMonth)) +
+plot = ggplot(nat_data, aes(x = YearMonth)) +
   
   # plot all drugs overdoses
   geom_line(
@@ -307,6 +321,8 @@ ggplot(nat_data, aes(x = YearMonth)) +
     legend.title       = element_blank()
   )
 
+# save plot
+ggsave("../ONDCP/fig1.pdf", plot = plot, width = 7, height = 5, units = "in")
 ```
 
 ## Figure 2
@@ -344,7 +360,7 @@ mygrid <- data.frame(
   )
 
 # replotting using geofacet by division
-ggplot(division_data_mnth, aes(x = YearMonth)) +
+plot = ggplot(division_data_mnth, aes(x = YearMonth)) +
   
   # plot opioid overdose deaths
   geom_line(
@@ -387,6 +403,9 @@ ggplot(division_data_mnth, aes(x = YearMonth)) +
     axis.ticks       = element_line(color = "black")
   )
 
+# save plot
+ggsave("../ONDCP/fig2.pdf", plot = plot, width = 7, height = 5, units = "in")
+plot
 ```
 
 # Regressions
@@ -661,11 +680,11 @@ ggplot(nat_data, aes(x = YearMonth)) +
 
 ```
 
-## Table S1
+## Table S2
 
 ```{r}
 
-# replicates supplementary table 1
+# replicates supplementary table 2
 # displays overall and division-wise coefficients
 # for three outcomes: all opioid deaths
 # all drug deaths, and lastly all synthetic opioid deaths
@@ -867,11 +886,11 @@ datasummary_df(
 
 ```
 
-## Table S2
+## Table S3
 
 ```{r}
 
-# replicates supplementary table 2
+# replicates supplementary table 3
 # displays overall and division-wise coefficients
 # for three outcomes: unweighted OLS TWFE,
 # AR(4)
@@ -1254,6 +1273,360 @@ datasummary_df(
   df_coef,
   output = "gt",
   fmt = fmt_sprintf("%.4f") # include 4 sig. figs on IRR
+)
+
+```
+
+## Table S4
+
+```{r}
+
+# replicates supplementary table 4
+# displays overall and division-wise coefficients
+# for two outcomes: imputations as 1 and 9 for suppressed counts
+
+# init. outcome vector
+outcomes = c("1-Imputation", "9-Imputation")
+# init. agg. model list
+model_results = list()
+
+# init. sequential outcome list
+model_list = list()
+
+# -----------------------------------------------------
+# Overall National Model
+# pop-weighted TWFE OLS on national-level data (fixest)
+# dependent variable imputed as ones
+# -----------------------------------------------------
+
+model_list[["Overall"]] <- feols(
+  death_non_synth_n_1_rate ~ prop_fentanyl_illicit | # formula
+  residence_state + YearMonth,                       # state and time-wise TWFE
+  data    = state_data_mnth,                         # use national dataset
+  weights = ~population,                             # population-weighted
+  cluster = ~residence_state + YearMonth             # two-way clustered SEs
+)
+
+# -----------------------------------------------------
+# Individual Time Period Models (incl. in reg. formula)
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+# iterate thru time periods
+for (pd in unique(state_data_mnth$time)) {
+
+  # refactoring for easier inferences
+  state_data_mnth$refactor = factor(state_data_mnth$time)
+  state_data_mnth$refactor = relevel(state_data_mnth$refactor, pd)
+
+  # Run pop-weighted TWFE OLS model
+  model <- feols( # include the time factor
+    death_non_synth_n_1_rate ~ prop_fentanyl_illicit * factor(refactor) |
+    residence_state + YearMonth,           # state and time-wise TWFE
+    data    = state_data_mnth,             # dataset
+    weights = ~population,                 # population-weighted
+    cluster = ~residence_state + YearMonth # two-way clustered SEs
+ )
+  
+  # Store results in list
+  model_list[[pd]] = model
+}
+
+# -----------------------------------------------------
+# Individual Division Models (incl. in reg. formula)
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+# iterate thru unique divisions
+for (div in unique(state_data_mnth$divisions)) {
+
+  # refactoring for easier inferences
+  state_data_mnth$refactor = factor(state_data_mnth$divisions)
+  state_data_mnth$refactor = relevel(state_data_mnth$refactor, div)
+
+  # Run pop-weighted TWFE OLS model
+  model <- feols( # include division factor
+    death_non_synth_n_1_rate ~ prop_fentanyl_illicit * factor(refactor) |
+    residence_state + YearMonth,           # state and time-wise TWFE
+    data    = state_data_mnth,             # dataset
+    weights = ~population,                 # population-weighted
+    cluster = ~residence_state + YearMonth # two-way clustered SEs
+ )
+  
+  # Store results in the model list
+  model_list[[div]] = model
+}
+
+# adj. names
+names(model_list) <- c(
+  "Overall",
+  "Pre-Covid, rising mortality: Jan 2018 - Feb 2020",
+  "Covid, rising mortality: Mar 2020 - Dec 2022",
+  "Post-Covid, falling mortality: Jan 2023 - Sep 2024",
+  "East South Central", "Pacific", "Mountain",
+  "West South Central", "New England", "South Atlantic",
+  "East North Central", "West North Central", "Middle Atlantic"
+)
+
+# append to agg. list
+model_results[[outcomes[1]]] = model_list
+
+# init. sequential outcome list
+model_list = list()
+
+# -----------------------------------------------------
+# Overall National Model
+# pop-weighted TWFE OLS on national-level data (fixest)
+# dependent variable imputed as nines
+# -----------------------------------------------------
+
+model_list[["Overall"]] <- feols(
+  death_non_synth_n_9_rate ~ prop_fentanyl_illicit | # formula
+  residence_state + YearMonth,                       # state and time-wise TWFE
+  data    = state_data_mnth,                         # use national dataset
+  weights = ~population,                             # population-weighted
+  cluster = ~residence_state + YearMonth             # two-way clustered SEs
+)
+
+# -----------------------------------------------------
+# Individual Time Period Models (incl. in reg. formula)
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+# iterate thru time periods
+for (pd in unique(state_data_mnth$time)) {
+
+  # refactoring for easier inferences
+  state_data_mnth$refactor = factor(state_data_mnth$time)
+  state_data_mnth$refactor = relevel(state_data_mnth$refactor, pd)
+
+  # Run pop-weighted TWFE OLS model
+  model <- feols( # include the time factor
+    death_non_synth_n_9_rate ~ prop_fentanyl_illicit * factor(refactor) |
+    residence_state + YearMonth,           # state and time-wise TWFE
+    data    = state_data_mnth,             # dataset
+    weights = ~population,                 # population-weighted
+    cluster = ~residence_state + YearMonth # two-way clustered SEs
+ )
+  
+  # Store results in list
+  model_list[[pd]] = model
+}
+
+# -----------------------------------------------------
+# Individual Division Models (incl. in reg. formula)
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+# iterate thru unique divisions
+for (div in unique(state_data_mnth$divisions)) {
+
+  # refactoring for easier inferences
+  state_data_mnth$refactor = factor(state_data_mnth$divisions)
+  state_data_mnth$refactor = relevel(state_data_mnth$refactor, div)
+
+  # Run pop-weighted TWFE OLS model
+  model <- feols( # include division factor
+    death_non_synth_n_9_rate ~ prop_fentanyl_illicit * factor(refactor) |
+    residence_state + YearMonth,           # state and time-wise TWFE
+    data    = state_data_mnth,             # dataset
+    weights = ~population,                 # population-weighted
+    cluster = ~residence_state + YearMonth # two-way clustered SEs
+ )
+  
+  # Store results in the model list
+  model_list[[div]] = model
+}
+
+# adj. names
+names(model_list) <- c(
+  "Overall",
+  "Pre-Covid, rising mortality: Jan 2018 - Feb 2020",
+  "Covid, rising mortality: Mar 2020 - Dec 2022",
+  "Post-Covid, falling mortality: Jan 2023 - Sep 2024",
+  "East South Central", "Pacific", "Mountain",
+  "West South Central", "New England", "South Atlantic",
+  "East North Central", "West North Central", "Middle Atlantic"
+)
+
+# append to agg. list
+model_results[[outcomes[2]]] = model_list
+
+```
+
+```{r}
+
+# replicates supplementary table 4
+# displays overall and division-wise coefficients
+# for two outcomes: imputations as 1 and 9 for suppressed counts
+
+# -------------------------------
+# extract point estimates and SEs
+# -------------------------------
+
+# init. dimension vectors
+outcomes = c("1-Imputation", "9-Imputation")
+groups = names(model_results[[1]])
+
+# init. df
+df_coef = data.frame()
+
+# iterative extraction
+for(i in seq_along(model_results)) {
+  
+  # death outcome
+  outcome = outcomes[i]
+  
+  # repeat along each nested list
+  for (div in groups) {
+    
+    # extract each indiv. model
+    model = model_results[[i]][[div]]
+    
+    # isolate reg. coefs. & se for prop_fentanyl
+    beta = model$coeftable["prop_fentanyl_illicit", "Estimate"]
+    se   = model$coeftable["prop_fentanyl_illicit", "Std. Error"]
+    
+    # append to df
+    df_coef = rbind(
+      df_coef,
+      data.frame(
+        group    = div,     # group
+        outcome  = outcome, # type of death
+        estimate = beta,    # point estimate
+        se       = se,      # standard error
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+}
+
+
+# ----------------------------------------------
+# mutate standard error dots and arrange into df
+# ----------------------------------------------
+
+df_coef = df_coef %>%
+  mutate(
+    estimate_se = paste0(
+      sprintf("%.4f", estimate), # format as 4 sig figs
+      case_when(estimate / se > qnorm(0.9995) ~ "***", # p < 0.001 (2-sided)
+                estimate / se > qnorm(0.995)  ~ "**",  # p < 0.01
+                estimate / se > qnorm(0.975)  ~ "*",   # p < 0.05
+                estimate / se > qnorm(0.95)   ~ "+",   # p < 0.1
+                TRUE                          ~ ""     # p < 1
+                ),
+      "\n(", sprintf("%.4f", se), ")"                # standard error
+    )
+  ) %>%
+  select(group, outcome, estimate_se) %>% # combined beta and se
+  pivot_wider( # turn into 3x10 table
+    names_from = outcome, # rownames
+    values_from = estimate_se # cell values
+  )
+
+```
+
+```{r}
+
+# replicates supplementary table 4
+# displays overall and division-wise coefficients
+# for two outcomes: imputations as 1 and 9 for suppressed counts
+
+# rename columns
+colnames(df_coef) = c(
+  "Model",
+  "Suppressed Values as 1", 
+  "Suppressed Values as 9"
+)
+
+# pivot df_coef from above wider
+datasummary_df(
+  df_coef,
+  output = "gt",
+  fmt = fmt_sprintf("%.4f") # include 4 sig. figs on IRR
+)
+
+```
+
+## Table S5
+
+```{r}
+
+# replicates supplementary table 5
+# considers yearly time periods
+
+# init. list of regression models
+model_results <- list()
+
+# -----------------------------------------------------
+# Overall National Model
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+model_results[["Overall"]] <- feols(
+  death_non_synth_n_rate ~ prop_fentanyl_illicit | # formula
+  residence_state + YearMonth,                     # state and time-wise TWFE
+  data    = state_data_mnth,                       # use national dataset
+  weights = ~population,                           # population-weighted
+  cluster = ~residence_state + YearMonth           # two-way clustered SEs
+)
+
+# -----------------------------------------------------
+# Individual Year Models (incl. in reg. formula)
+# pop-weighted TWFE OLS on national-level data (fixest)
+# -----------------------------------------------------
+
+# iterate thru time periods
+for (pd in unique(state_data_mnth$Year)) {
+
+  # refactoring for easier inferences
+  state_data_mnth$refactor = factor(state_data_mnth$Year)
+  state_data_mnth$refactor = relevel(state_data_mnth$refactor, pd)
+
+  # Run pop-weighted TWFE OLS model
+  model <- feols( # include the time factor
+    death_non_synth_n_rate ~ prop_fentanyl_illicit * factor(refactor) |
+    residence_state + YearMonth,           # state and time-wise TWFE
+    data    = state_data_mnth,             # dataset
+    weights = ~population,                 # population-weighted
+    cluster = ~residence_state + YearMonth # two-way clustered SEs
+ )
+  
+  # Store results in list
+  model_results[[pd]] = model
+}
+
+```
+
+```{r}
+
+# replicates supplementary table 5
+# considers yearly time periods
+
+# adj. names
+names(model_results) <- c(
+  "Overall",
+  "Jan 2018 - Dec 2018",
+  "Jan 2019 - Dec 2019",
+  "Jan 2020 - Dec 2020",
+  "Jan 2021 - Dec 2021",
+  "Jan 2022 - Dec 2022",
+  "Jan 2023 - Dec 2023",
+  "Jan 2024 - Sep 2024"
+)
+
+# output whole list
+modelsummary(
+  model_results,           # list model names
+  stars     = TRUE,        # list sig.
+  fmt       = 4,           # decimal places
+  statistic = "std.error", # display SEs
+  coef_map  = c(           # display only primary variable
+    "prop_fentanyl_illicit" = "Opioid Overdose Deaths"
+  ),
+  output    = "gt",        # output type
+  shape     = model + statistic ~ term
 )
 
 ```
